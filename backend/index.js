@@ -1,56 +1,52 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 
-async function getFiveOldest() {
+async function getFiveOldestWithDesc() {
     const baseUrl = "https://beyondchats.com/blogs/";
-    let articles = [];
+    let articleLinks = [];
 
     try {
-        // 1. Get the last page number
-        const firstPageResponse = await axios.get(baseUrl);
-        const $main = cheerio.load(firstPageResponse.data);
-        const pages = [];
-        $main('.page-numbers').each((_, el) => {
-            const num = parseInt($main(el).text());
-            if (!isNaN(num)) pages.push(num);
-        });
+        console.log("Fetching the 5 oldest article links...");
         
-        let currentPageNum = Math.max(...pages);
+        // 1. Target Page 15 and 14 specifically to get the oldest ones
+        const pagesToScrape = [15, 14];
 
-        // 2. Loop backwards through pages until we have 5 articles
-        while (articles.length < 5 && currentPageNum > 0) {
-            const pageUrl = `${baseUrl}page/${currentPageNum}/`;
-            console.log(`Fetching from: ${pageUrl}`);
+        for (let pageNum of pagesToScrape) {
+            const res = await axios.get(`${baseUrl}page/${pageNum}/`);
+            const $ = cheerio.load(res.data);
             
-            const response = await axios.get(pageUrl);
-            const $ = cheerio.load(response.data);
-            
-            const pageArticles = [];
-            $('article, .post').each((_, element) => {
-                const title = $(element).find('h1, h2, h3').first().text().trim();
-                const description = $(element).find('p').first().text().trim();
-                const link = $(element).find('a').attr('href');
-                if (title && link) pageArticles.push({ title, description, link });
+            // Collect titles and links from the current page
+            $('article').each((_, el) => {
+                const title = $(el).find('h2, h3').first().text().trim();
+                const link = $(el).find('a').attr('href');
+                if (title && link) {
+                    articleLinks.push({ title, link });
+                }
             });
-
-            // Since we want oldest first, we add the current page's articles 
-            // to the beginning of our list as we move backwards
-            articles = [...pageArticles.reverse(), ...articles];
-            currentPageNum--;
         }
 
-        // 3. Keep only the first 5 (which are the oldest)
-        const finalFive = articles.slice(0, 5);
+        // 2. Reverse and take the first 5 (absolute oldest)
+        const finalArticles = articleLinks.reverse().slice(0, 5);
 
-        console.log(`\n--- FOUND ${finalFive.length} OLDEST ARTICLES ---\n`);
-        finalFive.forEach((art, i) => {
-            console.log(`[${i + 1}] TITLE: ${art.title}`);
-            console.log(`    LINK:  ${art.link}\n`);
-        });
+        console.log("\n--- SCRAPING DESCRIPTIONS FROM LINKS ---\n");
+
+        // 3. Nested loop: Visit each link to get the description
+        for (let i = 0; i < finalArticles.length; i++) {
+            const articlePage = await axios.get(finalArticles[i].link);
+            const $art = cheerio.load(articlePage.data);
+            
+            // Get the first few paragraphs as the description
+            const description = $art('.entry-content p, .post-content p').first().text().trim();
+
+            console.log(`[${i + 1}] TITLE: ${finalArticles[i].title}`);
+            console.log(`    DESC:  ${description}`);
+            console.log(`    LINK:  ${finalArticles[i].link}\n`);
+            console.log('-------------------------------------------');
+        }
 
     } catch (error) {
         console.error("Error:", error.message);
     }
 }
 
-getFiveOldest();
+getFiveOldestWithDesc();
