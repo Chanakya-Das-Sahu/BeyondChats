@@ -10,29 +10,41 @@ import {
 import axios from "axios";
 import { marked } from "marked";
 import getServerOrigin from "./services/getServerOrigin";
-import {toast} from 'react-hot-toast';
+import { toast, ToastContainer } from 'react-toastify';
+import { useEffect } from "react";
+import ArticleModal from "./ArticleModal";
 const ArticleDashboard = () => {
   const [articles, setArticles] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [refiningId, setRefiningId] = useState(null);
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [fetchOriginals, setFetchOriginals] = useState(false);
+const [isModalOpen, setIsModalOpen] = useState(false);
+const [previewArticle, setPreviewArticle] = useState(null);
+  
+const openPreview = (article) => {
+  setPreviewArticle(article);
+  setIsModalOpen(true);
+};
 
-  const fetchOriginals = async () => {
-    setLoading(true);
+  useEffect(()=>{
+    const fetchOriginals = async () => {
+    setFetchOriginals(true);
     try {
       const response = await axios.get(`${getServerOrigin()}/fetchFromBeyond`);
       setArticles(response.data.data);
     } catch (error) {
       console.error("Fetch failed:", error);
     } finally {
-      setLoading(false);
+      setFetchOriginals(false);
     }
   };
+ fetchOriginals();
+  },[])
 
    const handleSave = async () => {
         if (!selectedArticle) return;
-
+        
         setSaving(true);
         try {
           const payload = {
@@ -61,8 +73,10 @@ const ArticleDashboard = () => {
       // 2. Prepare the payload exactly as your Node.js route expects it
       const payload = {
         title: article.title,
-        description: article.description,
+        description: article.content,
       };
+
+
 
       // 3. Make the POST request to your backend
       // Replace '/refine-article' with your full URL if the backend is on a different port
@@ -96,9 +110,19 @@ const ArticleDashboard = () => {
     }
   };
 
+  if(fetchOriginals){
+    return( 
+    <div className="min-h-screen flex flex-col items-center justify-center ">
+      <h1>Fetching 5 Oldest Articles...</h1><br/>
+      <Loader2 className="animate-spin" size={48} />
+    </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans">
       {/* Header */}
+    <ToastContainer position="top-right" autoClose={3000} />
       <header className="max-w-7xl mx-auto mb-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-4xl font-black text-slate-900 tracking-tight">
@@ -108,7 +132,7 @@ const ArticleDashboard = () => {
             Outrank competitors with AI-powered SEO refinement.
           </p>
         </div>
-        <button
+        {/* <button
           onClick={fetchOriginals}
           disabled={loading}
           className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-bold shadow-xl shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-3 disabled:bg-indigo-300"
@@ -119,7 +143,7 @@ const ArticleDashboard = () => {
             <Search size={22} />
           )}
           Fetch From BeyondChats
-        </button>
+        </button> */}
       </header>
 
       <main className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -128,22 +152,28 @@ const ArticleDashboard = () => {
           <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest px-1">
             Original Articles
           </h2>
+          <ArticleModal 
+      isOpen={isModalOpen} 
+      onClose={() => setIsModalOpen(false)} 
+      article={previewArticle} 
+    />
           {articles.map((item, idx) => (
             <div
               key={idx}
-              className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm group hover:shadow-md transition-shadow"
+              className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm group hover:shadow-md transition-shadow  cursor-pointer relative"
+              onClick={() => openPreview(item)}
             >
+              <div className="overflow-y-auto max-h-[350px] mb-[30px]">
               <h3 className="font-bold text-slate-900 mb-3 text-lg leading-snug">
                 {item.title}
               </h3>
-              <p className="text-slate-500 text-sm line-clamp-2 mb-6">
-                {item.description}
-              </p>
-              <div className="flex items-center justify-between">
+             <div dangerouslySetInnerHTML={{ __html: marked.parse(item.content) }} />
+             </div>
+              <div className="flex items-center justify-between w-full pl-[10px] pr-[30px] absolute left-[10px] bottom-[10px]">
                 <button
-                  onClick={() => handleRefine(item)}
+                  onClick={(e) =>{e.stopPropagation(); handleRefine(item) }}
                   disabled={refiningId === item.link}
-                  className="bg-amber-500 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-amber-600 flex items-center gap-2 transition-colors disabled:opacity-50"
+                  className="bg-amber-500 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-amber-600 flex items-center gap-2 transition-colors disabled:opacity-50 "
                 >
                   {refiningId === item.link ? (
                     <Loader2 className="animate-spin" size={14} />

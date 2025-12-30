@@ -3,8 +3,9 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const admin = require('firebase-admin');
 const cors = require('cors');
+const TurndownService = require('turndown');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
-
+const {marked} = require('marked');
 require('dotenv').config();
 
 const app = express();
@@ -117,20 +118,88 @@ Return ONLY valid JSON in this exact format:
   }
 });
 
+// app.get('/fetchFromBeyond', async (req, res) => {
+//     const baseUrl = "https://beyondchats.com/blogs/";
+//     let articleLinks = [];
+
+//     try {
+//         console.log("Starting scrape...");
+//         // 1. Get the last page numbers
+//         const mainRes = await axios.get(baseUrl);
+//         const $main = cheerio.load(mainRes.data);
+//         const pages = [15, 14]; // Targeting oldest pages
+
+//         for (let pageNum of pages) {
+//             const pageRes = await axios.get(`${baseUrl}page/${pageNum}/`);
+//             const $ = cheerio.load(pageRes.data);
+//             $('article').each((_, el) => {
+//                 const title = $(el).find('h2, h3').first().text().trim();
+//                 const link = $(el).find('a').attr('href');
+//                 if (title && link) articleLinks.push({ title, link });
+//             });
+//         }
+
+//         const finalArticles = articleLinks.reverse().slice(0, 5);
+//         const detailedArticles = [];
+
+//         // 2. Fetch descriptions from inside the links
+//         for (let art of finalArticles) {
+//             const articlePage = await axios.get(art.link);
+//             const $art = cheerio.load(articlePage.data);
+//             const description = $art('.entry-content p, .post-content p, .ast-single-post-content p')
+//                 .map((_, el) => $art(el).text().trim())
+//                 .get()
+//                 .filter(text => text.length > 20)
+//                 .slice(0, 3)
+//                 .join(' ');
+
+//             detailedArticles.push({
+//                 title: art.title,
+//                 description: description || "No description found",
+//                 link: art.link,
+//                 scrapedAt: new Date().toISOString()
+//             });
+//         }
+
+//         // 3. Store to Firestore using arrayUnion
+//         // We store all 5 articles inside a single document in a field called 'entries'
+//         const docRef = db.collection('blog_collection').doc('oldest_articles');
+//         await docRef.set({
+//             entries: admin.firestore.FieldValue.arrayUnion(...detailedArticles)
+//         }, { merge: true });
+
+//         res.status(200).json({
+//             message: "Successfully scraped and stored to Firestore",
+//             count: detailedArticles.length,
+//             data: detailedArticles
+//         });
+
+//     } catch (error) {
+//         console.error(error);
+//         res.status(500).send("Error: " + error.message);
+//     }
+// });
+
+const turndownService = new TurndownService({
+    headingStyle: 'atx',
+    codeBlockStyle: 'fenced',
+    emDelimiter: '_'
+});
+
 app.get('/fetchFromBeyond', async (req, res) => {
     const baseUrl = "https://beyondchats.com/blogs/";
     let articleLinks = [];
 
     try {
-        console.log("Starting scrape...");
-        // 1. Get the last page numbers
-        const mainRes = await axios.get(baseUrl);
-        const $main = cheerio.load(mainRes.data);
-        const pages = [15, 14]; // Targeting oldest pages
+        console.log("Starting full content scrape...");
+
+        // 1. Get the target pages (Oldest ones)
+        const pages = [15, 14]; 
 
         for (let pageNum of pages) {
             const pageRes = await axios.get(`${baseUrl}page/${pageNum}/`);
             const $ = cheerio.load(pageRes.data);
+            
             $('article').each((_, el) => {
                 const title = $(el).find('h2, h3').first().text().trim();
                 const link = $(el).find('a').attr('href');
@@ -138,43 +207,51 @@ app.get('/fetchFromBeyond', async (req, res) => {
             });
         }
 
+        // Reverse to get oldest first, and pick the first 5
         const finalArticles = articleLinks.reverse().slice(0, 5);
         const detailedArticles = [];
 
-        // 2. Fetch descriptions from inside the links
+        // 2. Fetch COMPLETE blog content and convert to Markdown
         for (let art of finalArticles) {
+            console.log(`Scraping content for: ${art.title}`);
             const articlePage = await axios.get(art.link);
             const $art = cheerio.load(articlePage.data);
-            const description = $art('.entry-content p, .post-content p, .ast-single-post-content p')
-                .map((_, el) => $art(el).text().trim())
-                .get()
-                .filter(text => text.length > 20)
-                .slice(0, 3)
-                .join(' ');
+
+            // Target the main content container (using common Astra/WordPress classes)
+            // We remove potential noise like scripts or sidebars before converting
+            const contentSelector = '.entry-content, .post-content, .ast-single-post-content';
+            const contentHtml = $art(contentSelector).html();
+
+            let markdownContent = "No content found";
+            if (contentHtml) {
+                // This converts the HTML (with bold, lists, links) into clean Markdown text
+                markdownContent = turndownService.turndown(contentHtml);
+            }
 
             detailedArticles.push({
                 title: art.title,
-                description: description || "No description found",
+                content: markdownContent, // Full text with formatting
                 link: art.link,
                 scrapedAt: new Date().toISOString()
             });
         }
 
-        // 3. Store to Firestore using arrayUnion
-        // We store all 5 articles inside a single document in a field called 'entries'
+        // 3. Store to Firestore
+        // Note: Full blogs can be large. If you exceed 1MB, this doc write will fail.
         const docRef = db.collection('blog_collection').doc('oldest_articles');
+        
         await docRef.set({
             entries: admin.firestore.FieldValue.arrayUnion(...detailedArticles)
         }, { merge: true });
 
         res.status(200).json({
-            message: "Successfully scraped and stored to Firestore",
+            message: "Successfully scraped full blogs and stored to Firestore",
             count: detailedArticles.length,
             data: detailedArticles
         });
 
     } catch (error) {
-        console.error(error);
+        console.error("Scraping Error:", error);
         res.status(500).send("Error: " + error.message);
     }
 });

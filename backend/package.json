@@ -19,6 +19,7 @@
     "express": "^5.2.1",
     "firebase": "^12.7.0",
     "firebase-admin": "^13.6.0",
+    "marked": "^17.0.1",
     "serpapi": "^2.2.1",
     "turndown": "^7.2.2"
   }
