@@ -5,7 +5,6 @@ const admin = require('firebase-admin');
 const cors = require('cors');
 const TurndownService = require('turndown');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
-const {marked} = require('marked');
 require('dotenv').config();
 
 const app = express();
