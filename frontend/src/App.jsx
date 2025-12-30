@@ -201,18 +201,18 @@ const openPreview = (article) => {
               <span className="text-indigo-400 font-mono text-xs font-bold tracking-[0.3em] uppercase">
                 AI Content Engine
               </span>
-              {selectedArticle && (
+              {/* {selectedArticle && (
                 <span className="text-emerald-400 text-xs font-bold flex items-center gap-1">
                   <CheckCircle size={14} /> OPTIMIZED
                 </span>
-              )}
+              )} */}
               <div className="flex items-center gap-4">
                 {selectedArticle && (
                   <>
                     <button
                       onClick={handleSave}
                       disabled={saving}
-                      className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all disabled:bg-slate-700"
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all disabled:bg-slate-700 cursor-pointer"
                     >
                       {saving ? (
                         <Loader2 className="animate-spin" size={14} />

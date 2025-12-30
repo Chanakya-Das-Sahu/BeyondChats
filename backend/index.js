@@ -78,7 +78,7 @@ app.post("/refine-article", async (req, res) => {
       model: "gemini-2.5-flash",
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 4096,
+        maxOutputTokens: 8192,
         responseMimeType: "application/json", // FORCE JSON
       },
     });
@@ -104,9 +104,9 @@ Return ONLY valid JSON in this exact format:
 
     // 5. Safe text extraction
     const text = result.response.text();
-
+const cleanedText = text.replace(/^```json|```$/g, "").trim();
     // 6. Parse JSON
-    const parsed = JSON.parse(text);
+    const parsed = JSON.parse(cleanedText);
 
     return res.json(parsed);
   } catch (error) {
@@ -118,67 +118,6 @@ Return ONLY valid JSON in this exact format:
   }
 });
 
-// app.get('/fetchFromBeyond', async (req, res) => {
-//     const baseUrl = "https://beyondchats.com/blogs/";
-//     let articleLinks = [];
-
-//     try {
-//         console.log("Starting scrape...");
-//         // 1. Get the last page numbers
-//         const mainRes = await axios.get(baseUrl);
-//         const $main = cheerio.load(mainRes.data);
-//         const pages = [15, 14]; // Targeting oldest pages
-
-//         for (let pageNum of pages) {
-//             const pageRes = await axios.get(`${baseUrl}page/${pageNum}/`);
-//             const $ = cheerio.load(pageRes.data);
-//             $('article').each((_, el) => {
-//                 const title = $(el).find('h2, h3').first().text().trim();
-//                 const link = $(el).find('a').attr('href');
-//                 if (title && link) articleLinks.push({ title, link });
-//             });
-//         }
-
-//         const finalArticles = articleLinks.reverse().slice(0, 5);
-//         const detailedArticles = [];
-
-//         // 2. Fetch descriptions from inside the links
-//         for (let art of finalArticles) {
-//             const articlePage = await axios.get(art.link);
-//             const $art = cheerio.load(articlePage.data);
-//             const description = $art('.entry-content p, .post-content p, .ast-single-post-content p')
-//                 .map((_, el) => $art(el).text().trim())
-//                 .get()
-//                 .filter(text => text.length > 20)
-//                 .slice(0, 3)
-//                 .join(' ');
-
-//             detailedArticles.push({
-//                 title: art.title,
-//                 description: description || "No description found",
-//                 link: art.link,
-//                 scrapedAt: new Date().toISOString()
-//             });
-//         }
-
-//         // 3. Store to Firestore using arrayUnion
-//         // We store all 5 articles inside a single document in a field called 'entries'
-//         const docRef = db.collection('blog_collection').doc('oldest_articles');
-//         await docRef.set({
-//             entries: admin.firestore.FieldValue.arrayUnion(...detailedArticles)
-//         }, { merge: true });
-
-//         res.status(200).json({
-//             message: "Successfully scraped and stored to Firestore",
-//             count: detailedArticles.length,
-//             data: detailedArticles
-//         });
-
-//     } catch (error) {
-//         console.error(error);
-//         res.status(500).send("Error: " + error.message);
-//     }
-// });
 
 const turndownService = new TurndownService({
     headingStyle: 'atx',

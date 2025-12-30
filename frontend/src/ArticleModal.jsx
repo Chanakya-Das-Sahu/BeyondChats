@@ -2,6 +2,34 @@ import React from 'react';
 import { X, Calendar, Link as LinkIcon, ExternalLink, FileText } from 'lucide-react';
 import { marked } from 'marked';
 const ArticleModal = ({ isOpen, onClose, article }) => {
+  const formatToIST = (isoString) => {
+  const date = new Date(isoString);
+
+  // Using Intl.DateTimeFormat for robust timezone and string handling
+  const options = {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  };
+
+  const formatter = new Intl.DateTimeFormat('en-GB', options);
+  const parts = formatter.formatToParts(date);
+
+  // Extract parts to reconstruct in the exact "08:40 PM , 30 Dec 2025" format
+  const getPart = (type) => parts.find(p => p.type === type).value;
+
+  const time = `${getPart('hour')}:${getPart('minute')} ${getPart('dayPeriod').toUpperCase()}`;
+  const day = getPart('day');
+  const month = getPart('month');
+  const year = getPart('year');
+
+  return `${time} , ${day} ${month} ${year}`;
+};
+
   if (!isOpen || !article) return null;
 console.log('article',article)
   // Handle clicking outside the modal to close
@@ -39,7 +67,7 @@ console.log('article',article)
           <div className="flex flex-wrap gap-4 mb-8 text-sm text-slate-500">
             <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-lg">
               <Calendar size={14} />
-              <span>Scraped at: {article.scrapedAt || "Recently"}</span>
+              <span>Scraped at :  { formatToIST(article.scrapedAt) || "Recently"}</span>
             </div>
             <a 
               href={article.link} 
