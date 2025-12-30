@@ -9,8 +9,9 @@ const {marked} = require('marked');
 require('dotenv').config();
 
 const app = express();
-app.use(express.json());
 app.use(cors())
+app.use(express.json());
+
 // IMPORTANT: You MUST download your serviceAccountKey.json from Firebase Console
 // Settings > Service Accounts > Generate New Private Key
 const serviceAccount = {
@@ -78,7 +79,7 @@ app.post("/refine-article", async (req, res) => {
       model: "gemini-2.5-flash",
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 10000,
+        maxOutputTokens: 20000,
         responseMimeType: "application/json", // FORCE JSON
       },
     });
