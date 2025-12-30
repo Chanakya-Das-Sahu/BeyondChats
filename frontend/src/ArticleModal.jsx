@@ -53,7 +53,7 @@ console.log('article',article)
           </div>
 
           <div className="prose prose-slate max-w-none">
-            <h4 className="text-slate-400 uppercase text-[10px] font-black tracking-widest mb-[-10px]">Description</h4>
+            <h4 className="text-slate-400 uppercase text-[10px] font-black tracking-widest mb-[-10px]">Description</h4><br/>
              <div dangerouslySetInnerHTML={{__html: marked.parse(article.content)}}/>
           </div>
 
