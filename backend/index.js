@@ -24,8 +24,44 @@ admin.initializeApp({
 
 const db = admin.firestore();
 
+app.post("/save-refined", async (req, res) => {
+  const { link, updatedTitle, updatedContent, references } = req.body;
+
+  if (!link) return res.status(400).json({ error: "Original link is required" });
+
+  try {
+    const docRef = db.collection('blog_collection').doc('oldest_articles');
+    const doc = await docRef.get();
+
+    if (!doc.exists) return res.status(404).json({ error: "Document not found" });
+
+    const data = doc.data();
+    // Map through the entries to find the one matching the link and update it
+    const updatedEntries = data.entries.map(article => {
+      if (article.link === link) {
+        return {
+          ...article,
+          refined_title: updatedTitle,
+          refined_content: updatedContent,
+          refinedAt: new Date().toISOString(),
+          isRefined:true,
+          ideal_references: references
+        };
+      }
+      return article;
+    });
+
+    await docRef.update({ entries: updatedEntries });
+
+    res.status(200).json({ message: "Saved successfully!" });
+  } catch (error) {
+    console.error("Save error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 app.post("/refine-article", async (req, res) => {
+  console.log('refinning')
   const { title, description } = req.body;
 
   if (!title || !description) {
@@ -57,6 +93,7 @@ Return ONLY valid JSON in this exact format:
 {
   "updatedTitle": "string",
   "updatedContent": "markdown string",
+  // please include here two reference of top ranked articles on the same topic on google search 
   "references": ["url1", "url2"]
 }
 `;
