@@ -56,7 +56,7 @@ Description: "${description}"
 Return ONLY valid JSON in this exact format:
 {
   "updatedTitle": "string",
-  "updatedContent": "<p>HTML content</p> along with css",
+  "updatedContent": "markdown string",
   "references": ["url1", "url2"]
 }
 `;
