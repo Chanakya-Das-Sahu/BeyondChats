@@ -3,7 +3,7 @@ const getServerOrigin = () => {
    if(env=='/dev'){
     return 'http://localhost:3000';
    } else {
-    return 'https://beyond-chats-ruby.vercel.app/';
+    return 'https://beyond-chats-ruby.vercel.app';
    }
 };
 
