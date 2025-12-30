@@ -3,10 +3,12 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const admin = require('firebase-admin');
 const cors = require('cors');
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+
 require('dotenv').config();
 
 const app = express();
-
+app.use(express.json());
 app.use(cors())
 // IMPORTANT: You MUST download your serviceAccountKey.json from Firebase Console
 // Settings > Service Accounts > Generate New Private Key
@@ -21,6 +23,62 @@ admin.initializeApp({
 });
 
 const db = admin.firestore();
+
+
+app.post("/refine-article", async (req, res) => {
+  const { title, description } = req.body;
+
+  if (!title || !description) {
+    return res.status(400).json({ error: "Title and description are required" });
+  }
+
+  try {
+    // 1. Initialize Gemini with API key from env
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+    // 2. Get model (verified + stable)
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.5-flash",
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 4096,
+        responseMimeType: "application/json", // FORCE JSON
+      },
+    });
+
+    // 3. Prompt
+    const prompt = `
+Rewrite the following article for SEO.
+
+Title: "${title}"
+Description: "${description}"
+
+Return ONLY valid JSON in this exact format:
+{
+  "updatedTitle": "string",
+  "updatedContent": "<p>HTML content</p> along with css",
+  "references": ["url1", "url2"]
+}
+`;
+
+    // 4. Generate
+    const result = await model.generateContent(prompt);
+
+    // 5. Safe text extraction
+    const text = result.response.text();
+
+    // 6. Parse JSON
+    const parsed = JSON.parse(text);
+
+    return res.json(parsed);
+  } catch (error) {
+    console.error("Refine article error:", error);
+    return res.status(500).json({
+      error: "Refinement failed",
+      details: error.message,
+    });
+  }
+});
 
 app.get('/fetchFromBeyond', async (req, res) => {
     const baseUrl = "https://beyondchats.com/blogs/";
