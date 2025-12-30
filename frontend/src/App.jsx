@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Search, Sparkles, Link as LinkIcon, CheckCircle, Loader2, ExternalLink } from 'lucide-react';
 import axios from 'axios';
 import {marked } from 'marked';
-
+import getServerOrigin from './services/getServerOrigin';
 const ArticleDashboard = () => {
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -12,7 +12,7 @@ const ArticleDashboard = () => {
   const fetchOriginals = async () => {
     setLoading(true);
     try {
-      const response = await axios.get('http://localhost:3000/fetchFromBeyond');
+      const response = await axios.get(`${getServerOrigin()}/fetchFromBeyond`);
       setArticles(response.data.data);
     } catch (error) {
       console.error("Fetch failed:", error);
@@ -34,7 +34,7 @@ const handleRefine = async (article) => {
 
     // 3. Make the POST request to your backend
     // Replace '/refine-article' with your full URL if the backend is on a different port
-    const response = await axios.post('http://localhost:3000/refine-article', payload);
+    const response = await axios.post(`${getServerOrigin()}/refine-article`, payload);
 
     // 4. Axios automatically parses the JSON, so 'response.data' is your final object
     const refinedData = response.data;
