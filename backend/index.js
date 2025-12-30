@@ -78,7 +78,7 @@ app.post("/refine-article", async (req, res) => {
       model: "gemini-2.5-flash",
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 8192,
+        maxOutputTokens: 10000,
         responseMimeType: "application/json", // FORCE JSON
       },
     });
