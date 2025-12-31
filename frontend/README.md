@@ -1,16 +1,71 @@
-# React + Vite
+========================================================================
+             FRONTEND UI - CONTENTGENIUS AI DASHBOARD
+========================================================================
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+1. SETUP INSTRUCTIONS
+------------------------------------------------------------------------
+Step 1: Navigate to the directory
+        > cd frontend
 
-Currently, two official plugins are available:
+Step 2: Install dependencies
+        > npm install
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Step 3: create .env 
+        
+        create VITE_ENV='/dev' 
+        to access development backend server otherwise it will access cloud backend server
 
-## React Compiler
+Step 3: Development Server
+        > npm run dev
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
-## Expanding the ESLint configuration
+2. CORE FUNCTIONALITY
+------------------------------------------------------------------------
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+FEATURE 1: Article Fetching
+--------------------------------------------------
+Function:    fetchOriginals()
+Action:      Calls GET /fetchFromBeyond.
+Behavior:    Populates the left-hand sidebar with the 5 oldest 
+             articles from BeyondChats.
+
+
+FEATURE 2: AI Refinement (Gemini Integration)
+--------------------------------------------------
+Function:    handleRefine(article)
+Action:      Sends raw title/desc to POST /refine-article.
+Processing:  Converts AI Markdown response into clean HTML using 
+             the 'marked' library.
+Display:     Shows SEO title, body, and competitor source links.
+
+
+FEATURE 3: Database Sync
+--------------------------------------------------
+Function:    handleSave()
+Action:      Sends the refined content to POST /save-refined.
+Identifier:  Uses the article 'link' as the unique key.
+Feedback:    Triggers 'react-hot-toast' notifications on success.
+
+
+3. TECHNICAL STACK
+------------------------------------------------------------------------
+* UI Library:  React.js
+* Styling:    Tailwind CSS (Modern, Responsive Design)
+* Icons:      Lucide-React
+* HTTP Client: Axios
+* Parsing:    Marked (Markdown to HTML)
+* Utilities:  Custom 'getServerOrigin' for flexible API base URLs
+
+
+4. COMPONENT STRUCTURE
+------------------------------------------------------------------------
+[ Header ] -> Brand Title & Global Fetch Button
+    |
+[  Main  ] -> Left Col:  Scrollable feed of raw articles
+    |
+    --------> Right Col: Sticky AI Previewer & Firestore Save tool
+
+
+========================================================================
+Generated on: 2025-12-30
+========================================================================
