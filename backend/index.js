@@ -25,40 +25,225 @@ admin.initializeApp({
 
 const db = admin.firestore();
 
+// app.post("/save-refined", async (req, res) => {
+//   const { link, updatedTitle, updatedContent, references } = req.body;
+
+//   if (!link) return res.status(400).json({ error: "Original link is required" });
+
+//   try {
+//     const docRef = db.collection('blog_collection').doc('oldest_articles');
+//     const doc = await docRef.get();
+
+//     if (!doc.exists) return res.status(404).json({ error: "Document not found" });
+
+//     const data = doc.data();
+//     // Map through the entries to find the one matching the link and update it
+//     const updatedEntries = data.entries.map(article => {
+//       if (article.link === link) {
+//         return {
+//           ...article,
+//           refined_title: updatedTitle,
+//           refined_content: updatedContent,
+//           refinedAt: new Date().toISOString(),
+//           isRefined:true,
+//           ideal_references: references
+//         };
+//       }
+//       return article;
+//     });
+
+//     await docRef.update({ entries: updatedEntries });
+
+//     res.status(200).json({ message: "Saved successfully!" });
+//   } catch (error) {
+//     console.error("Save error:", error);
+//     res.status(500).json({ error: error.message });
+//   }
+// });
+
+
+// const turndownService = new TurndownService({
+//     headingStyle: 'atx',
+//     codeBlockStyle: 'fenced',
+//     emDelimiter: '_'
+// });
+
+// app.get('/fetchFromBeyond', async (req, res) => {
+//     const baseUrl = "https://beyondchats.com/blogs/";
+//     let articleLinks = [];
+
+//     try {
+//         console.log("Starting full content scrape...");
+
+//         // 1. Get the target pages (Oldest ones)
+//         const pages = [15, 14]; 
+
+//         for (let pageNum of pages) {
+//             const pageRes = await axios.get(`${baseUrl}page/${pageNum}/`);
+//             const $ = cheerio.load(pageRes.data);
+            
+//             $('article').each((_, el) => {
+//                 const title = $(el).find('h2, h3').first().text().trim();
+//                 const link = $(el).find('a').attr('href');
+//                 if (title && link) articleLinks.push({ title, link });
+//             });
+//         }
+
+//         // Reverse to get oldest first, and pick the first 5
+//         const finalArticles = articleLinks.reverse().slice(0, 5);
+//         const detailedArticles = [];
+
+//         // 2. Fetch COMPLETE blog content and convert to Markdown
+//         for (let art of finalArticles) {
+//             console.log(`Scraping content for: ${art.title}`);
+//             const articlePage = await axios.get(art.link);
+//             const $art = cheerio.load(articlePage.data);
+
+//             // Target the main content container (using common Astra/WordPress classes)
+//             // We remove potential noise like scripts or sidebars before converting
+//             const contentSelector = '.entry-content, .post-content, .ast-single-post-content';
+//             const contentHtml = $art(contentSelector).html();
+
+//             let markdownContent = "No content found";
+//             if (contentHtml) {
+//                 // This converts the HTML (with bold, lists, links) into clean Markdown text
+//                 markdownContent = turndownService.turndown(contentHtml);
+//             }
+
+//             detailedArticles.push({
+//                 title: art.title,
+//                 content: markdownContent, // Full text with formatting
+//                 link: art.link,
+//                 scrapedAt: new Date().toISOString()
+//             });
+//         }
+
+//         // 3. Store to Firestore
+//         // Note: Full blogs can be large. If you exceed 1MB, this doc write will fail.
+//         const docRef = db.collection('blog_collection').doc('oldest_articles');
+        
+//         await docRef.set({
+//             entries: admin.firestore.FieldValue.arrayUnion(...detailedArticles)
+//         }, { merge: true });
+
+//         res.status(200).json({
+//             message: "Successfully scraped full blogs and stored to Firestore",
+//             count: detailedArticles.length,
+//             data: detailedArticles
+//         });
+
+//     } catch (error) {
+//         console.error("Scraping Error:", error);
+//         res.status(500).send("Error: " + error.message);
+//     }
+// });
+
+const getDocId = (link) => Buffer.from(link).toString('base64').replace(/[/+=]/g, '_').substring(0, 50);
+
+// 2. Turndown Service configuration
+const turndownService = new TurndownService({
+    headingStyle: 'atx',
+    codeBlockStyle: 'fenced',
+    emDelimiter: '_'
+});
+
+// 3. Updated Save Route (Preserves all fields)
 app.post("/save-refined", async (req, res) => {
-  const { link, updatedTitle, updatedContent, references } = req.body;
+    const { link, updatedTitle, updatedContent, references } = req.body;
 
-  if (!link) return res.status(400).json({ error: "Original link is required" });
+    if (!link) return res.status(400).json({ error: "Original link is required" });
 
-  try {
-    const docRef = db.collection('blog_collection').doc('oldest_articles');
-    const doc = await docRef.get();
+    try {
+        const docId = getDocId(link);
+        const docRef = db.collection('blog_collection').doc(docId);
 
-    if (!doc.exists) return res.status(404).json({ error: "Document not found" });
-
-    const data = doc.data();
-    // Map through the entries to find the one matching the link and update it
-    const updatedEntries = data.entries.map(article => {
-      if (article.link === link) {
-        return {
-          ...article,
-          refined_title: updatedTitle,
-          refined_content: updatedContent,
-          refinedAt: new Date().toISOString(),
-          isRefined:true,
-          ideal_references: references
+        const updateData = {
+            refined_title: updatedTitle,
+            refined_content: updatedContent,
+            refinedAt: new Date().toISOString(),
+            isRefined: true,
+            ideal_references: references
         };
-      }
-      return article;
-    });
 
-    await docRef.update({ entries: updatedEntries });
+        await docRef.update(updateData);
 
-    res.status(200).json({ message: "Saved successfully!" });
-  } catch (error) {
-    console.error("Save error:", error);
-    res.status(500).json({ error: error.message });
-  }
+        res.status(200).json({ message: "Saved successfully!" });
+    } catch (error) {
+        console.error("Save error:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// 4. Updated Scraper Route (Restores full data response to frontend)
+app.get('/fetchFromBeyond', async (req, res) => {
+    const baseUrl = "https://beyondchats.com/blogs/";
+    let articleLinks = [];
+
+    try {
+        console.log("Starting full content scrape...");
+
+        // Get target pages
+        const pages = [15, 14]; 
+
+        for (let pageNum of pages) {
+            const pageRes = await axios.get(`${baseUrl}page/${pageNum}/`);
+            const $ = cheerio.load(pageRes.data);
+            
+            $('article').each((_, el) => {
+                const title = $(el).find('h2, h3').first().text().trim();
+                const link = $(el).find('a').attr('href');
+                if (title && link) articleLinks.push({ title, link });
+            });
+        }
+
+        const finalArticles = articleLinks.reverse().slice(0, 5);
+        const detailedArticles = []; // This will be sent back to your frontend
+        const batch = db.batch();
+
+        for (let art of finalArticles) {
+            console.log(`Scraping content for: ${art.title}`);
+            const articlePage = await axios.get(art.link);
+            const $art = cheerio.load(articlePage.data);
+
+            const contentSelector = '.entry-content, .post-content, .ast-single-post-content';
+            const contentHtml = $art(contentSelector).html();
+
+            let markdownContent = "No content found";
+            if (contentHtml) {
+                markdownContent = turndownService.turndown(contentHtml);
+            }
+
+            const articleData = {
+                title: art.title,
+                content: markdownContent,
+                link: art.link,
+                scrapedAt: new Date().toISOString(),
+                isRefined: false
+            };
+
+            // Push to local array for frontend response
+            detailedArticles.push(articleData);
+
+            // Add to Firestore Batch
+            const docId = getDocId(art.link);
+            const docRef = db.collection('blog_collection').doc(docId);
+            batch.set(docRef, articleData, { merge: true });
+        }
+
+        // Commit all changes to Firestore
+        await batch.commit();
+
+        // Returning the same format your original code did
+        res.status(200).json({
+            message: "Successfully scraped full blogs and stored to Firestore",
+            count: detailedArticles.length,
+            data: detailedArticles // Frontend gets the full array here
+        });
+
+    } catch (error) {
+        console.error("Scraping Error:", error);
+        res.status(500).send("Error: " + error.message);
+    }
 });
 
 app.post("/refine-article", async (req, res) => {
@@ -119,80 +304,5 @@ const cleanedText = text.replace(/^```json|```$/g, "").trim();
 });
 
 
-const turndownService = new TurndownService({
-    headingStyle: 'atx',
-    codeBlockStyle: 'fenced',
-    emDelimiter: '_'
-});
-
-app.get('/fetchFromBeyond', async (req, res) => {
-    const baseUrl = "https://beyondchats.com/blogs/";
-    let articleLinks = [];
-
-    try {
-        console.log("Starting full content scrape...");
-
-        // 1. Get the target pages (Oldest ones)
-        const pages = [15, 14]; 
-
-        for (let pageNum of pages) {
-            const pageRes = await axios.get(`${baseUrl}page/${pageNum}/`);
-            const $ = cheerio.load(pageRes.data);
-            
-            $('article').each((_, el) => {
-                const title = $(el).find('h2, h3').first().text().trim();
-                const link = $(el).find('a').attr('href');
-                if (title && link) articleLinks.push({ title, link });
-            });
-        }
-
-        // Reverse to get oldest first, and pick the first 5
-        const finalArticles = articleLinks.reverse().slice(0, 5);
-        const detailedArticles = [];
-
-        // 2. Fetch COMPLETE blog content and convert to Markdown
-        for (let art of finalArticles) {
-            console.log(`Scraping content for: ${art.title}`);
-            const articlePage = await axios.get(art.link);
-            const $art = cheerio.load(articlePage.data);
-
-            // Target the main content container (using common Astra/WordPress classes)
-            // We remove potential noise like scripts or sidebars before converting
-            const contentSelector = '.entry-content, .post-content, .ast-single-post-content';
-            const contentHtml = $art(contentSelector).html();
-
-            let markdownContent = "No content found";
-            if (contentHtml) {
-                // This converts the HTML (with bold, lists, links) into clean Markdown text
-                markdownContent = turndownService.turndown(contentHtml);
-            }
-
-            detailedArticles.push({
-                title: art.title,
-                content: markdownContent, // Full text with formatting
-                link: art.link,
-                scrapedAt: new Date().toISOString()
-            });
-        }
-
-        // 3. Store to Firestore
-        // Note: Full blogs can be large. If you exceed 1MB, this doc write will fail.
-        const docRef = db.collection('blog_collection').doc('oldest_articles');
-        
-        await docRef.set({
-            entries: admin.firestore.FieldValue.arrayUnion(...detailedArticles)
-        }, { merge: true });
-
-        res.status(200).json({
-            message: "Successfully scraped full blogs and stored to Firestore",
-            count: detailedArticles.length,
-            data: detailedArticles
-        });
-
-    } catch (error) {
-        console.error("Scraping Error:", error);
-        res.status(500).send("Error: " + error.message);
-    }
-});
 
 app.listen(3000, () => console.log('Server running on port 3000'));
